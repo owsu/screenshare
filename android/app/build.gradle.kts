@@ -2,6 +2,9 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
 }
+if (JavaVersion.current() != JavaVersion.VERSION_17) {
+    throw GradleException("WiSafe requires JDK 17 for builds. Run build-apk.ps1 from the repository root, or select JDK 17 as the Gradle JDK in Android Studio.")
+}
 android {
     namespace = "org.shadowtrace"
     compileSdk = 35

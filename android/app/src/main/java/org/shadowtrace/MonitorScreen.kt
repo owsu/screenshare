@@ -187,6 +187,9 @@ class MonitorScreen(context: Context, deviceId: String, onRefresh: () -> Unit, o
         networkFreshness = label("No monitoring session is active.", 13, muted).apply { setPadding(0, 0, 0, dp(16)) }
         networkPage.addView(networkFreshness)
         heading(networkPage, "On your phone")
+        networkPage.addView(label("Highest evidence first · unsynced networks last",12,muted).apply {
+            setPadding(0,0,0,dp(12))
+        })
         cacheList = column()
         cacheList.addView(label("Start a session to see Wi-Fi results here, even while GPS is still settling.",14,muted))
         networkPage.addView(cacheList)
@@ -522,8 +525,13 @@ class MonitorScreen(context: Context, deviceId: String, onRefresh: () -> Unit, o
             val results = cachedResults
             cacheList.removeAllViews(); localAges.clear()
             if (results.length() == 0) cacheList.addView(label("No Wi-Fi scan results yet. Check Wi-Fi, precise location permission and the scan status on Home.",14,muted))
-            for (i in 0 until results.length()) {
-                val ap = results.getJSONObject(i)
+            val ranked = (0 until results.length()).map { results.getJSONObject(it) }.sortedWith(
+                compareByDescending<JSONObject> {
+                    // Missing evidence is distinct from an evaluated zero score.
+                    serverTracks[it.optString("bssid").lowercase()]?.optDouble("score",-1.0) ?: -1.0
+                }.thenBy { it.optString("bssid").lowercase() }
+            )
+            for (ap in ranked) {
                 val item = card(Color.WHITE,16).apply {
                     layoutParams = LayoutParams(LayoutParams.MATCH_PARENT,LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(10) }
                 }

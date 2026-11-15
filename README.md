@@ -73,7 +73,10 @@ shown separately. No movement links while stationary is expected. Zero visible
 networks calls for checking Wi-Fi/permission/scan status, not assuming safety.
 Network cards show SSID, BSSID, signal, the BSSID's last synced evidence, and then
 scan age. Records already in the phone's cache are not repeated under earlier
-observations. Names use Android's modern SSID reader when available and can fall
+observations. Within each section, higher evidence scores appear first; unsynced
+cached networks appear last. Cached cards use BSSID as a stable tie-breaker and
+reorder when synced scores change. Names use Android's modern SSID reader when
+available and can fall
 back to the last known name for the same BSSID, explicitly labeled as historical.
 If Android never provides a name, the card says “Network name unavailable” rather
 than incorrectly asserting that the network is hidden. Cached data without a
@@ -147,6 +150,20 @@ is `(device_id, session_id, bssid, timestamp_us)`. Transactions serialize scorin
 Exact retries remain safe after an acknowledgement is lost. Uploads must be FIFO.
 
 ## Verify
+
+To rebuild the APK in PowerShell, run this from the repository root:
+
+```powershell
+.\build-apk.ps1
+```
+
+This selects an installed **JDK 17**, overrides the Gradle daemon JVM for the
+build, and prints the APK path only on success. It leaves your terminal's Java
+settings unchanged afterward. Use `-Lint` to include Android lint, or
+`-JdkPath "C:\path\to\jdk-17"` to choose a specific installation. If PowerShell
+blocks script execution, run `powershell -ExecutionPolicy Bypass -File .\build-apk.ps1`.
+The Android build requires JDK 17; Java 25 is incompatible with its Gradle 8.11.1
+wrapper. Android Studio should also have **Gradle JDK = 17** selected.
 
 ```powershell
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
