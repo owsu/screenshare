@@ -52,6 +52,7 @@ class MonitorScreen(context: Context, deviceId: String, onRefresh: () -> Unit, o
     private lateinit var scanTiming: TextView
     private lateinit var refresh: Button
     private lateinit var cacheList: LinearLayout
+    private lateinit var networkSearch: EditText
     private var newestScanElapsed: Long? = null
     private var newestFixElapsed: Long? = null
     private var accuracy: Float? = null
@@ -186,6 +187,29 @@ class MonitorScreen(context: Context, deviceId: String, onRefresh: () -> Unit, o
         })
         networkFreshness = label("No monitoring session is active.", 13, muted).apply { setPadding(0, 0, 0, dp(16)) }
         networkPage.addView(networkFreshness)
+        networkSearch = EditText(context).apply {
+            id = View.generateViewId()
+            hint = "Search network name or BSSID"
+            textSize = 15f
+            setTextColor(ink)
+            setHintTextColor(muted)
+            inputType = InputType.TYPE_CLASS_TEXT
+            setSingleLine(true)
+            importantForAutofill = IMPORTANT_FOR_AUTOFILL_NO
+            background = shape(Color.WHITE, 7).apply { setStroke(dp(1), line) }
+            setPadding(dp(12), dp(10), dp(12), dp(10))
+            contentDescription = "Filter networks by name or BSSID"
+        }
+        networkPage.addView(networkSearch, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
+            bottomMargin = dp(18)
+        })
+        networkSearch.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                renderNetworkLists()
+            }
+            override fun afterTextChanged(s: android.text.Editable?) = Unit
+        })
         heading(networkPage, "On your phone")
         networkPage.addView(label("Highest evidence first · unsynced networks last",12,muted).apply {
             setPadding(0,0,0,dp(12))
@@ -472,10 +496,16 @@ class MonitorScreen(context: Context, deviceId: String, onRefresh: () -> Unit, o
     private fun renderNetworkLists() {
         renderCachedNetworks()
         val cachedKeys = (0 until cachedResults.length()).map { cachedResults.getJSONObject(it).optString("bssid").lowercase() }.toSet()
-        val earlier = serverTracks.filterKeys { it !in cachedKeys }.values
+        val allEarlier = serverTracks.filterKeys { it !in cachedKeys }.values
+        val earlier = allEarlier.filter { matchesNetwork(it) }
         networks.removeAllViews()
         if (earlier.isEmpty()) {
-            networks.addView(label(if (cachedKeys.isEmpty()) "No earlier observations yet." else "All stored networks are shown in the cards above.",13,muted))
+            val message = when {
+                networkSearch.text.isNotBlank() && allEarlier.isNotEmpty() -> "No earlier networks match your search."
+                cachedKeys.isEmpty() && allEarlier.isEmpty() -> "No earlier observations yet."
+                else -> "All stored networks are shown in the cards above."
+            }
+            networks.addView(label(message,13,muted))
         }
         for (track in earlier) {
             val item = card(Color.WHITE, 20).apply {
@@ -487,6 +517,16 @@ class MonitorScreen(context: Context, deviceId: String, onRefresh: () -> Unit, o
             networks.addView(item)
         }
     }
+
+    private fun matchesNetwork(ap: JSONObject): Boolean {
+        val query = networkSearch.text.toString().trim()
+        if (query.isEmpty()) return true
+        val key = ap.optString("bssid").lowercase()
+        val name = networkName(ap.optString("ssid")) ?: knownNames[key]
+            ?: networkName(serverTracks[key]?.optString("ssid").orEmpty())
+        return name?.contains(query, ignoreCase = true) == true || key.contains(query, ignoreCase = true)
+    }
+
     private fun emptyNetworks() {
         val empty = card(Color.WHITE, 24)
         empty.addView(label("No observations yet", 20, ink, true))
@@ -530,7 +570,10 @@ class MonitorScreen(context: Context, deviceId: String, onRefresh: () -> Unit, o
                     // Missing evidence is distinct from an evaluated zero score.
                     serverTracks[it.optString("bssid").lowercase()]?.optDouble("score",-1.0) ?: -1.0
                 }.thenBy { it.optString("bssid").lowercase() }
-            )
+            ).filter { matchesNetwork(it) }
+            if (results.length() > 0 && ranked.isEmpty()) {
+                cacheList.addView(label("No current networks match your search.",14,muted))
+            }
             for (ap in ranked) {
                 val item = card(Color.WHITE,16).apply {
                     layoutParams = LayoutParams(LayoutParams.MATCH_PARENT,LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(10) }
@@ -644,4 +687,3 @@ class MonitorScreen(context: Context, deviceId: String, onRefresh: () -> Unit, o
         parent.addView(answer)
     }
 }
-

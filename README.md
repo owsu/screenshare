@@ -67,7 +67,9 @@ for the backend connection. The first launch opens the guide; it can be skipped
 or revisited at any time. The server URL is remembered; the token stays in memory.
 
 The network counter shows scan-cache results independently of GPS and server
-availability; those results can be stale. Movement links summarize stored evidence.
+availability; those results can be stale. The Networks screen search filters both
+current and earlier networks by a case-insensitive name or BSSID substring.
+Movement links summarize stored evidence.
 Wi-Fi scan age, location accuracy/age, connection status and queued batches are
 shown separately. No movement links while stationary is expected. Zero visible
 networks calls for checking Wi-Fi/permission/scan status, not assuming safety.
